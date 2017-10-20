@@ -38,7 +38,7 @@ then
   exit 1
 fi
 
-./configure --prefix="${GENDIR}" --with-pic
+./configure --prefix="${GENDIR}" --with-pic --disable-shared
 if [ $? -ne 0 ]
 then
   echo "./configure command failed."

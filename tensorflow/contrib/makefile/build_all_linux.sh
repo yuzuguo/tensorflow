@@ -26,11 +26,11 @@ source "${SCRIPT_DIR}/build_helper.subr"
 JOB_COUNT="${JOB_COUNT:-$(get_job_count)}"
 
 # Remove any old files first.
-make -f tensorflow/contrib/makefile/Makefile clean
-rm -rf tensorflow/contrib/makefile/downloads
+make -f tensorflow/contrib/makefile/Makefile cleantarget
+# rm -rf tensorflow/contrib/makefile/downloads
 
 # Pull down the required versions of the frameworks we need.
-tensorflow/contrib/makefile/download_dependencies.sh
+# tensorflow/contrib/makefile/download_dependencies.sh
 
 # Compile nsync.
 # Don't use  export var=`something` syntax; it swallows the exit status.

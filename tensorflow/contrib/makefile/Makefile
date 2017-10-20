@@ -238,20 +238,48 @@ ifeq ($(TARGET),ANDROID)
 	ifndef NDK_ROOT
     $(error "NDK_ROOT is not defined.")
 	endif
-	CXX := $(CC_PREFIX) $(NDK_ROOT)/toolchains/arm-linux-androideabi-4.9/prebuilt/$(OS_PATH)-x86_64/bin/arm-linux-androideabi-g++
-	CC := $(CC_PREFIX) $(NDK_ROOT)/toolchains/arm-linux-androideabi-4.9/prebuilt/$(OS_PATH)-x86_64/bin/arm-linux-androideabi-gcc
-	CXXFLAGS +=\
---sysroot $(NDK_ROOT)/platforms/android-21/arch-arm \
+
+# android CPU architectures
+# default architectures
+ANDROID_ARCH := arm64-v8a
+
+# arm64-v8a
+ifeq ($(ANDROID_ARCH),arm64-v8a)
+TOOLCHAIN := aarch64-linux-android-4.9
+SYSROOT_ARCH := arm64
+BIN_PREFIX := aarch64-linux-android
+MARCH_OPTION :=
+endif
+
+# armeabi
+ifeq ($(ANDROID_ARCH),armeabi)
+TOOLCHAIN := arm-linux-androideabi-4.9
+SYSROOT_ARCH := arm
+BIN_PREFIX := arm-linux-androideabi
+MARCH_OPTION :=
+endif
+
+# armeabi-v7a
+ifeq ($(ANDROID_ARCH),armeabi-v7a)
+TOOLCHAIN := arm-linux-androideabi-4.9
+SYSROOT_ARCH := arm
+BIN_PREFIX := arm-linux-androideabi
+MARCH_OPTION := -march=armv7-a -mfloat-abi=softfp -mfpu=neon
+endif
+
+
+CXX := $(CC_PREFIX) $(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(OS_PATH)-x86_64/bin/$(BIN_PREFIX)-g++
+CC := $(CC_PREFIX) $(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(OS_PATH)-x86_64/bin/$(BIN_PREFIX)-gcc
+CXXFLAGS +=\
+--sysroot $(NDK_ROOT)/platforms/android-21/arch-$(SYSROOT_ARCH) \
 -Wno-narrowing \
 -fomit-frame-pointer \
--march=armv7-a \
--mfloat-abi=softfp \
--mfpu=neon \
+$(MARCH_OPTION) \
 -fPIE
 	INCLUDES = \
 -I$(NDK_ROOT)/sources/android/support/include \
 -I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/include \
--I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/armeabi/include \
+-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/$(ANDROID_ARCH)/include \
 -I. \
 -I$(MAKEFILE_DIR)/downloads/ \
 -I$(MAKEFILE_DIR)/downloads/eigen \
@@ -271,17 +299,17 @@ $(TARGET_NSYNC_LIB) \
 -lm \
 -ldl
 
-	LD := $(NDK_ROOT)/toolchains/arm-linux-androideabi-4.9/prebuilt/$(OS_PATH)-x86_64/arm-linux-androideabi/bin/ld
+	LD := $(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(OS_PATH)-x86_64/$(BIN_PREFIX)/bin/ld
 
 	LDFLAGS := \
--march=armv7-a \
+$(MARCH_OPTION) \
 -L$(MAKEFILE_DIR)/gen/protobuf/lib \
--L$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/armeabi-v7a \
+-L$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/$(ANDROID_ARCH) \
 -fPIE \
 -pie \
 -v
 
-	AR := $(NDK_ROOT)/toolchains/arm-linux-androideabi-4.9/prebuilt/$(OS_PATH)-x86_64/bin/arm-linux-androideabi-ar
+	AR := $(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(OS_PATH)-x86_64/bin/$(BIN_PREFIX)-ar
 	ARFLAGS := r
 	LIBFLAGS += -Wl,--allow-multiple-definition -Wl,--whole-archive
 
@@ -305,6 +333,11 @@ $(TARGET_NSYNC_LIB) \
 	ifdef ENABLE_EXPERIMENTAL_HEXNN_OPS
 		CXXFLAGS += -DENABLE_EXPERIMENTAL_HEXNN_OPS
 	endif
+
+OBJDIR := $(OBJDIR)android_$(ANDROID_ARCH)/
+LIBDIR := $(LIBDIR)android_$(ANDROID_ARCH)/
+BINDIR := $(BINDIR)android_$(ANDROID_ARCH)/
+DEPDIR := $(DEPDIR)android_$(ANDROID_ARCH)/
 
 endif  # ANDROID
 # LINT.ThenChange(//tensorflow/contrib/android/cmake/CMakeLists.txt)
@@ -653,6 +686,7 @@ clean_except_protobuf_libs:
 # across builds for iOS.
 cleantarget:
 	rm -rf $(OBJDIR)
+	rm -rf $(LIBDIR)
 	rm -rf $(BINDIR)
 
 $(DEPDIR)/%.d: ;
