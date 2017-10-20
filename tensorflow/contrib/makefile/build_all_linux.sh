@@ -26,7 +26,7 @@ source "${SCRIPT_DIR}/build_helper.subr"
 JOB_COUNT="${JOB_COUNT:-$(get_job_count)}"
 
 # Remove any old files first.
-make -f tensorflow/contrib/makefile/Makefile cleantarget
+make -f tensorflow/contrib/makefile/Makefile clean
 # rm -rf tensorflow/contrib/makefile/downloads
 
 # Pull down the required versions of the frameworks we need.
