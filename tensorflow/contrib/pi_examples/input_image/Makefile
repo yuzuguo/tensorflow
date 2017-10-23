@@ -214,7 +214,7 @@ LIB_SRCS := tensorflow/contrib/pi_examples/input_image/image_classify.cc
 
 # This library is the main target for this makefile. It will contain a minimal
 # runtime that can be linked in to other programs.
-LIB_NAME := libpi_core_deeplearning.a
+LIB_NAME := libtensorflow-api.a
 LIB_PATH := $(LIBDIR)$(LIB_NAME)
 
 # File names of the intermediate files target compilation generates.
