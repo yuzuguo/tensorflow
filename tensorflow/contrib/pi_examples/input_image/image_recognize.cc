@@ -2,10 +2,10 @@
 // Created by kerner on 10/16/17.
 //
 
-#include <string>
 #include <fstream>
+#include <string>
 
-#include "image_classify.h"
+#include "image_recognize.h"
 
 #include "tensorflow/core/framework/graph.pb.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -23,21 +23,18 @@
 #include "tensorflow/core/util/command_line_flags.h"
 
 namespace PI {
-namespace deeplearning {
-class ImageClassify::Impl {
+namespace recognize {
+class ImageRecognize::Impl {
  public:
   // Impl start
   Impl(const Parameters &params);
   ~Impl();
 
-  std::vector<std::pair<std::string, float>>
-  classify(uint8_t *image_data,
-           int image_width,
-           int image_height,
-           int image_channels);
+  std::vector<std::pair<std::string, float>> recognize(
+      uint8_t *image_data, const int image_width, const int image_height,
+      const int image_channels);
 
  private:
-
   // graph to be executed
   std::string graph;
   // name of file containing labels
@@ -59,24 +56,29 @@ class ImageClassify::Impl {
   std::vector<std::string> label_list;
   size_t label_count;
 
-  class ImageClassify;
-  tensorflow::Status ReadTensorFromImage(uint8_t *image_data,
-                                         int image_width,
-                                         int image_height,
-                                         int image_channels, std::vector<tensorflow::Tensor> *out_tensors);
-  tensorflow::Status GetTopLabels(const std::vector<tensorflow::Tensor> &outputs, int how_many_labels,
-                                  tensorflow::Tensor *out_indices, tensorflow::Tensor *out_scores);
+  class ImageRecognize;
+  tensorflow::Status ReadTensorFromImage(
+      uint8_t *image_data, int image_width, int image_height,
+      int image_channels, std::vector<tensorflow::Tensor> *out_tensors);
+  tensorflow::Status GetTopLabels(
+      const std::vector<tensorflow::Tensor> &outputs, int how_many_labels,
+      tensorflow::Tensor *out_indices, tensorflow::Tensor *out_scores);
   tensorflow::Status LoadGraph(std::string graph_file_name,
                                std::unique_ptr<tensorflow::Session> *session);
-  tensorflow::Status ReadLabelsFile(std::string file_name, std::vector<std::string> *result,
+  tensorflow::Status ReadLabelsFile(std::string file_name,
+                                    std::vector<std::string> *result,
                                     size_t *found_label_count);
 };
 
-ImageClassify::Impl::Impl(const Parameters &params)
-    : graph(params.graph), labels(params.labels), input_width(params.input_width),
-      input_height(params.input_height), input_mean(params.input_mean), input_std(params.input_std),
-      input_layer(params.input_layer), output_layer(params.output_layer) {
-
+ImageRecognize::Impl::Impl(const Parameters &params)
+    : graph(params.graph),
+      labels(params.labels),
+      input_width(params.input_width),
+      input_height(params.input_height),
+      input_mean(params.input_mean),
+      input_std(params.input_std),
+      input_layer(params.input_layer),
+      output_layer(params.output_layer) {
   // First we load and initialize the model.
   std::string graph_path = tensorflow::io::JoinPath("", graph);
   tensorflow::Status load_graph_status = LoadGraph(graph_path, &session);
@@ -91,19 +93,18 @@ ImageClassify::Impl::Impl(const Parameters &params)
   }
 }
 
-ImageClassify::Impl::~Impl() {}
+ImageRecognize::Impl::~Impl() {}
 
-std::vector<std::pair<std::string, float>>
-ImageClassify::Impl::classify(uint8_t *image_data,
-                              int image_width,
-                              int image_height,
-                              int image_channels) {
+std::vector<std::pair<std::string, float>> ImageRecognize::Impl::recognize(
+    uint8_t *image_data, const int image_width, const int image_height,
+    const int image_channels) {
   std::vector<std::pair<std::string, float>> top_result;
-  // Get the image from image_data as a float array of numbers, resized and normalized
+  // Get the image from image_data as a float array of numbers, resized and
+  // normalized
   // to the specifications the main graph expects.
   std::vector<tensorflow::Tensor> resized_tensors;
-  tensorflow::Status read_tensor_status =
-      ReadTensorFromImage(image_data, image_width, image_height, image_channels, &resized_tensors);
+  tensorflow::Status read_tensor_status = ReadTensorFromImage(
+      image_data, image_width, image_height, image_channels, &resized_tensors);
   if (!read_tensor_status.ok()) {
     std::cerr << read_tensor_status << std::endl;
     return top_result;
@@ -124,16 +125,19 @@ ImageClassify::Impl::classify(uint8_t *image_data,
   const int how_many_labels = std::min(5, static_cast<int>(label_count));
   tensorflow::Tensor indices;
   tensorflow::Tensor scores;
-  tensorflow::Status top_label_result = GetTopLabels(outputs, how_many_labels, &indices, &scores);
+  tensorflow::Status top_label_result =
+      GetTopLabels(outputs, how_many_labels, &indices, &scores);
   if (!top_label_result.ok()) {
     return top_result;
   }
   tensorflow::TTypes<float>::Flat scores_flat = scores.flat<float>();
-  tensorflow::TTypes<tensorflow::int32>::Flat indices_flat = indices.flat<tensorflow::int32>();
+  tensorflow::TTypes<tensorflow::int32>::Flat indices_flat =
+      indices.flat<tensorflow::int32>();
   for (int pos = 0; pos < how_many_labels; ++pos) {
     const int label_index = indices_flat(pos);
     const float score = scores_flat(pos);
-    std::cout << label_list[label_index] << " (" << label_index << "): " << score << std::endl;
+    std::cout << label_list[label_index] << " (" << label_index
+              << "): " << score << std::endl;
     top_result.push_back(std::make_pair(label_list[label_index], score));
   }
   return top_result;
@@ -141,10 +145,9 @@ ImageClassify::Impl::classify(uint8_t *image_data,
 
 // Analyzes the output of the Inception graph to retrieve the highest scores and
 // their positions in the tensor, which correspond to categories.
-tensorflow::Status ImageClassify::Impl::GetTopLabels(const std::vector<tensorflow::Tensor> &outputs,
-                                                     int how_many_labels,
-                                                     tensorflow::Tensor *out_indices,
-                                                     tensorflow::Tensor *out_scores) {
+tensorflow::Status ImageRecognize::Impl::GetTopLabels(
+    const std::vector<tensorflow::Tensor> &outputs, int how_many_labels,
+    tensorflow::Tensor *out_indices, tensorflow::Tensor *out_scores) {
   const tensorflow::Tensor &unsorted_scores_tensor = outputs[0];
   auto unsorted_scores_flat = unsorted_scores_tensor.flat<float>();
   std::vector<std::pair<int, float>> scores;
@@ -168,27 +171,28 @@ tensorflow::Status ImageClassify::Impl::GetTopLabels(const std::vector<tensorflo
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status ImageClassify::Impl::ReadTensorFromImage(uint8_t *image_data,
-                                                            int image_width,
-                                                            int image_height,
-                                                            int image_channels,
-                                                            std::vector<tensorflow::Tensor> *out_tensors) {
+tensorflow::Status ImageRecognize::Impl::ReadTensorFromImage(
+    uint8_t *image_data, int image_width, int image_height, int image_channels,
+    std::vector<tensorflow::Tensor> *out_tensors) {
   const int wanted_channels = 3;
   const int wanted_width = input_width;
   const int wanted_height = input_height;
   const float input_mean = static_cast<float>(this->input_mean);
   const float input_std = static_cast<float>(this->input_std);
   if (image_channels < wanted_channels) {
-    return tensorflow::errors::FailedPrecondition("Image needs to have at least ",
-                                                  wanted_channels, " but only has ",
-                                                  image_channels);
+    return tensorflow::errors::FailedPrecondition(
+        "Image needs to have at least ", wanted_channels, " but only has ",
+        image_channels);
   }
 
-  // In these loops, we convert the eight-bit data in the image into float, resize
-  // it using bilinear filtering, and scale it numerically to the float range that
+  // In these loops, we convert the eight-bit data in the image into float,
+  // resize
+  // it using bilinear filtering, and scale it numerically to the float range
+  // that
   // the model expects (given by input_mean and input_std).
   tensorflow::Tensor image_tensor(
-      tensorflow::DT_FLOAT, tensorflow::TensorShape(
+      tensorflow::DT_FLOAT,
+      tensorflow::TensorShape(
           {1, wanted_height, wanted_width, wanted_channels}));
   auto image_tensor_mapped = image_tensor.tensor<float, 4>();
   tensorflow::uint8 *in = image_data;
@@ -223,8 +227,10 @@ tensorflow::Status ImageClassify::Impl::ReadTensorFromImage(uint8_t *image_data,
       for (int c = 0; c < wanted_channels; ++c) {
         const float top_left((in_top_left_pixel[c] - input_mean) / input_std);
         const float top_right((in_top_right_pixel[c] - input_mean) / input_std);
-        const float bottom_left((in_bottom_left_pixel[c] - input_mean) / input_std);
-        const float bottom_right((in_bottom_right_pixel[c] - input_mean) / input_std);
+        const float bottom_left((in_bottom_left_pixel[c] - input_mean) /
+            input_std);
+        const float bottom_right((in_bottom_right_pixel[c] - input_mean) /
+            input_std);
         const float top = top_left + (top_right - top_left) * x_lerp;
         const float bottom =
             bottom_left + (bottom_right - bottom_left) * x_lerp;
@@ -239,8 +245,9 @@ tensorflow::Status ImageClassify::Impl::ReadTensorFromImage(uint8_t *image_data,
 
 // Reads a model graph definition from disk, and creates a session object you
 // can use to run it.
-tensorflow::Status ImageClassify::Impl::LoadGraph(std::string graph_file_name,
-                                                  std::unique_ptr<tensorflow::Session> *session) {
+tensorflow::Status ImageRecognize::Impl::LoadGraph(
+    std::string graph_file_name,
+    std::unique_ptr<tensorflow::Session> *session) {
   tensorflow::GraphDef graph_def;
   tensorflow::Status load_graph_status =
       ReadBinaryProto(tensorflow::Env::Default(), graph_file_name, &graph_def);
@@ -259,8 +266,9 @@ tensorflow::Status ImageClassify::Impl::LoadGraph(std::string graph_file_name,
 // Takes a file name, and loads a list of labels from it, one per line, and
 // returns a vector of the strings. It pads with empty strings so the length
 // of the result is a multiple of 16, because our model expects that.
-tensorflow::Status ImageClassify::Impl::ReadLabelsFile(std::string file_name, std::vector<std::string> *result,
-                                                       size_t *found_label_count) {
+tensorflow::Status ImageRecognize::Impl::ReadLabelsFile(
+    std::string file_name, std::vector<std::string> *result,
+    size_t *found_label_count) {
   std::ifstream file(file_name);
   if (!file) {
     return tensorflow::errors::NotFound("Labels file ", file_name,
@@ -280,46 +288,47 @@ tensorflow::Status ImageClassify::Impl::ReadLabelsFile(std::string file_name, st
 }
 // Impl end
 
-
 // Parameters start
-ImageClassify::Parameters::Parameters(std::string graph,
-                                      std::string labels,
-                                      int32_t input_width,
-                                      int32_t input_height,
-                                      int32_t input_mean,
-                                      int32_t input_std,
-                                      std::string input_layer,
-                                      std::string output_layer)
-    : graph(graph), labels(labels), input_width(input_width), input_height(input_height), input_mean(input_mean),
-      input_std(input_std), input_layer(input_layer), output_layer(output_layer) {}
+ImageRecognize::Parameters::Parameters(
+    const std::string &graph, const std::string &labels,
+    const int32_t input_width, const int32_t input_height,
+    const int32_t input_mean, const int32_t input_std,
+    const std::string &input_layer, const std::string &output_layer)
+    : graph(graph),
+      labels(labels),
+      input_width(input_width),
+      input_height(input_height),
+      input_mean(input_mean),
+      input_std(input_std),
+      input_layer(input_layer),
+      output_layer(output_layer) {}
 
-ImageClassify::Parameters::~Parameters() {}
+ImageRecognize::Parameters::~Parameters() {}
 // Parameters end
 
-// ImageClassify start
-ImageClassify::ImageClassify(const Parameters &params) : impl_(std::make_shared<Impl>(params)) {}
-ImageClassify::~ImageClassify() {};
+// ImageRecognize start
+ImageRecognize::ImageRecognize(const Parameters &params)
+    : impl_(std::make_shared<Impl>(params)) {}
+ImageRecognize::~ImageRecognize() {}
 
-std::vector<std::pair<std::string, float>> ImageClassify::classify(uint8_t *image_data,
-                                                                   int image_width,
-                                                                   int image_height,
-                                                                   int image_channels) {
-  return impl_->classify(image_data, image_width, image_height, image_channels);
+std::vector<std::pair<std::string, float>> ImageRecognize::recognize(
+    uint8_t *image_data, const int image_width, const int image_height,
+    const int image_channels) {
+  return impl_->recognize(image_data, image_width, image_height,
+                          image_channels);
 }
-// ImageClassify end
+// ImageRecognize end
 
-
-std::shared_ptr<ImageClassify> CreateImageClassify(std::string graph,
-                                                   std::string labels,
-                                                   int32_t input_width,
-                                                   int32_t input_height,
-                                                   int32_t input_mean,
-                                                   int32_t input_std,
-                                                   std::string input_layer /*= "Mul"*/,
-                                                   std::string output_layer /*= "softmax"*/) {
-  ImageClassify::Parameters
-      parameters(graph, labels, input_width, input_height, input_mean, input_std, input_layer, output_layer);
-  return std::make_shared<ImageClassify>(parameters);
+std::shared_ptr<ImageRecognize> CreateImageRecognize(
+    const std::string &graph, const std::string &labels,
+    const int32_t input_width, const int32_t input_height,
+    const int32_t input_mean, const int32_t input_std,
+    const std::string &input_layer /*= "Mul"*/,
+    const std::string &output_layer /*= "softmax"*/) {
+  ImageRecognize::Parameters parameters(graph, labels, input_width,
+                                        input_height, input_mean, input_std,
+                                        input_layer, output_layer);
+  return std::make_shared<ImageRecognize>(parameters);
 }
-} // deeplearning
-} // PI
+}  // recognize
+}  // PI

@@ -207,14 +207,14 @@ LIBFLAGS += -Wl,--allow-multiple-definition -Wl,--whole-archive
 endif  # ANDROID
 
 # The name of the output program we're compiling.
-EXECUTABLE_NAME := $(BINDIR)/image_classify_demo
+EXECUTABLE_NAME := $(BINDIR)/image_recognize_demo
 
-EXECUTABLE_SRCS := tensorflow/contrib/pi_examples/input_image/image_classify_demo.cc
-LIB_SRCS := tensorflow/contrib/pi_examples/input_image/image_classify.cc
+EXECUTABLE_SRCS := tensorflow/contrib/pi_examples/input_image/image_recognize_demo.cc
+LIB_SRCS := tensorflow/contrib/pi_examples/input_image/image_recognize.cc
 
 # This library is the main target for this makefile. It will contain a minimal
 # runtime that can be linked in to other programs.
-LIB_NAME := libtensorflow-api.a
+LIB_NAME := libpi_module_recognize.a
 LIB_PATH := $(LIBDIR)$(LIB_NAME)
 
 # File names of the intermediate files target compilation generates.

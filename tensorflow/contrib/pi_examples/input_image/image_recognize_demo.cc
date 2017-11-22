@@ -8,7 +8,7 @@
 #include <vector>
 #include <iomanip>
 
-#include "image_classify.h"
+#include "image_recognize.h"
 #include "tensorflow/core/framework/graph.pb.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/graph/default_device.h"
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  auto imageClassify = PI::deeplearning::CreateImageClassify(graph,
+  auto imageRecognize = PI::recognize::CreateImageRecognize(graph,
                                                              labels,
                                                              input_width,
                                                              input_height,
@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
 
   // run
   tensorflow::uint8 *in = image_data.data();
-  auto result = imageClassify->classify(in, image_width, image_height, image_channels);
+  auto result = imageRecognize->recognize(in, image_width, image_height, image_channels);
   for (std::pair<std::string, float> r : result) {
     std::cout << r.first << " : " << r.second << std::endl;
   }
