@@ -8,9 +8,9 @@
 #include <vector>
 
 namespace PI {
-namespace recognize {
+namespace recognition {
 
-class ImageRecognize {
+class ImageRecognizer {
  public:
   struct Parameters {
     // graph to be executed
@@ -37,10 +37,10 @@ class ImageRecognize {
     virtual ~Parameters();
   };
 
-  ImageRecognize(const Parameters &params);
-  virtual ~ImageRecognize();
+  ImageRecognizer(const Parameters &params);
+  virtual ~ImageRecognizer();
 
-  std::vector<std::pair<std::string, float>> recognize(
+  std::vector<std::pair<std::string, float>> Recognize(
       uint8_t *image_data, const int image_width, const int image_height,
       const int image_channels);
 
@@ -50,7 +50,7 @@ class ImageRecognize {
   std::shared_ptr<Impl> impl_;
 };
 
-std::shared_ptr<ImageRecognize> CreateImageRecognize(
+std::shared_ptr<ImageRecognizer> CreateImageRecognizer(
     const std::string &graph, const std::string &labels,
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,

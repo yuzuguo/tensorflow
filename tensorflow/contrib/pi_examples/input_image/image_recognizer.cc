@@ -5,7 +5,7 @@
 #include <fstream>
 #include <string>
 
-#include "image_recognize.h"
+#include "image_recognizer.h"
 
 #include "tensorflow/core/framework/graph.pb.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -23,14 +23,14 @@
 #include "tensorflow/core/util/command_line_flags.h"
 
 namespace PI {
-namespace recognize {
-class ImageRecognize::Impl {
+namespace recognition {
+class ImageRecognizer::Impl {
  public:
   // Impl start
   Impl(const Parameters &params);
   ~Impl();
 
-  std::vector<std::pair<std::string, float>> recognize(
+  std::vector<std::pair<std::string, float>> Recognize(
       uint8_t *image_data, const int image_width, const int image_height,
       const int image_channels);
 
@@ -56,7 +56,7 @@ class ImageRecognize::Impl {
   std::vector<std::string> label_list;
   size_t label_count;
 
-  class ImageRecognize;
+  class ImageRecognizer;
   tensorflow::Status ReadTensorFromImage(
       uint8_t *image_data, int image_width, int image_height,
       int image_channels, std::vector<tensorflow::Tensor> *out_tensors);
@@ -70,7 +70,7 @@ class ImageRecognize::Impl {
                                     size_t *found_label_count);
 };
 
-ImageRecognize::Impl::Impl(const Parameters &params)
+ImageRecognizer::Impl::Impl(const Parameters &params)
     : graph(params.graph),
       labels(params.labels),
       input_width(params.input_width),
@@ -93,9 +93,9 @@ ImageRecognize::Impl::Impl(const Parameters &params)
   }
 }
 
-ImageRecognize::Impl::~Impl() {}
+ImageRecognizer::Impl::~Impl() {}
 
-std::vector<std::pair<std::string, float>> ImageRecognize::Impl::recognize(
+std::vector<std::pair<std::string, float>> ImageRecognizer::Impl::Recognize(
     uint8_t *image_data, const int image_width, const int image_height,
     const int image_channels) {
   std::vector<std::pair<std::string, float>> top_result;
@@ -145,7 +145,7 @@ std::vector<std::pair<std::string, float>> ImageRecognize::Impl::recognize(
 
 // Analyzes the output of the Inception graph to retrieve the highest scores and
 // their positions in the tensor, which correspond to categories.
-tensorflow::Status ImageRecognize::Impl::GetTopLabels(
+tensorflow::Status ImageRecognizer::Impl::GetTopLabels(
     const std::vector<tensorflow::Tensor> &outputs, int how_many_labels,
     tensorflow::Tensor *out_indices, tensorflow::Tensor *out_scores) {
   const tensorflow::Tensor &unsorted_scores_tensor = outputs[0];
@@ -171,7 +171,7 @@ tensorflow::Status ImageRecognize::Impl::GetTopLabels(
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status ImageRecognize::Impl::ReadTensorFromImage(
+tensorflow::Status ImageRecognizer::Impl::ReadTensorFromImage(
     uint8_t *image_data, int image_width, int image_height, int image_channels,
     std::vector<tensorflow::Tensor> *out_tensors) {
   const int wanted_channels = 3;
@@ -245,7 +245,7 @@ tensorflow::Status ImageRecognize::Impl::ReadTensorFromImage(
 
 // Reads a model graph definition from disk, and creates a session object you
 // can use to run it.
-tensorflow::Status ImageRecognize::Impl::LoadGraph(
+tensorflow::Status ImageRecognizer::Impl::LoadGraph(
     std::string graph_file_name,
     std::unique_ptr<tensorflow::Session> *session) {
   tensorflow::GraphDef graph_def;
@@ -266,7 +266,7 @@ tensorflow::Status ImageRecognize::Impl::LoadGraph(
 // Takes a file name, and loads a list of labels from it, one per line, and
 // returns a vector of the strings. It pads with empty strings so the length
 // of the result is a multiple of 16, because our model expects that.
-tensorflow::Status ImageRecognize::Impl::ReadLabelsFile(
+tensorflow::Status ImageRecognizer::Impl::ReadLabelsFile(
     std::string file_name, std::vector<std::string> *result,
     size_t *found_label_count) {
   std::ifstream file(file_name);
@@ -289,7 +289,7 @@ tensorflow::Status ImageRecognize::Impl::ReadLabelsFile(
 // Impl end
 
 // Parameters start
-ImageRecognize::Parameters::Parameters(
+ImageRecognizer::Parameters::Parameters(
     const std::string &graph, const std::string &labels,
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,
@@ -303,32 +303,32 @@ ImageRecognize::Parameters::Parameters(
       input_layer(input_layer),
       output_layer(output_layer) {}
 
-ImageRecognize::Parameters::~Parameters() {}
+ImageRecognizer::Parameters::~Parameters() {}
 // Parameters end
 
-// ImageRecognize start
-ImageRecognize::ImageRecognize(const Parameters &params)
+// ImageRecognizer start
+ImageRecognizer::ImageRecognizer(const Parameters &params)
     : impl_(std::make_shared<Impl>(params)) {}
-ImageRecognize::~ImageRecognize() {}
+ImageRecognizer::~ImageRecognizer() {}
 
-std::vector<std::pair<std::string, float>> ImageRecognize::recognize(
+std::vector<std::pair<std::string, float>> ImageRecognizer::Recognize(
     uint8_t *image_data, const int image_width, const int image_height,
     const int image_channels) {
-  return impl_->recognize(image_data, image_width, image_height,
+  return impl_->Recognize(image_data, image_width, image_height,
                           image_channels);
 }
-// ImageRecognize end
+// ImageRecognizer end
 
-std::shared_ptr<ImageRecognize> CreateImageRecognize(
+std::shared_ptr<ImageRecognizer> CreateImageRecognizer(
     const std::string &graph, const std::string &labels,
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,
     const std::string &input_layer /*= "Mul"*/,
     const std::string &output_layer /*= "softmax"*/) {
-  ImageRecognize::Parameters parameters(graph, labels, input_width,
+  ImageRecognizer::Parameters parameters(graph, labels, input_width,
                                         input_height, input_mean, input_std,
                                         input_layer, output_layer);
-  return std::make_shared<ImageRecognize>(parameters);
+  return std::make_shared<ImageRecognizer>(parameters);
 }
-}  // recognize
+}  // recognition
 }  // PI
