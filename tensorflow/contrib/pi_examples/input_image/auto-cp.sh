@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-root_dir=/home/kerner/work/github/BasePlate/base/platform
+root_dir=/home/kerner/Ext/work/github/BasePlate/base/platform
 # Linux X64
 # recognize module library
 cp tensorflow/contrib/pi_examples/input_image/gen/lib/libpi_module_recognition.a ${root_dir}/Linux-X64/lib/

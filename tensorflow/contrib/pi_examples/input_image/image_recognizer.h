@@ -29,11 +29,13 @@ class ImageRecognizer {
     std::string input_layer;
     // name of output layer, default is softmax
     std::string output_layer;
+    // use cpu cores
+    int32_t cores;
 
     Parameters(const std::string &graph, const std::string &labels,
                const int32_t input_width, const int32_t input_height,
                const int32_t input_mean, const int32_t input_std,
-               const std::string &input_layer, const std::string &output_layer);
+               const std::string &input_layer, const std::string &output_layer, const int32_t cores);
     virtual ~Parameters();
   };
 
@@ -55,6 +57,6 @@ std::shared_ptr<ImageRecognizer> CreateImageRecognizer(
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,
     const std::string &input_layer = "Mul",
-    const std::string &output_layer = "softmax");
+    const std::string &output_layer = "softmax", const int32_t cores = 2);
 }
 }

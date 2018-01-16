@@ -51,6 +51,8 @@ class ImageRecognizer::Impl {
   std::string input_layer;
   // name of output layer, default is softmax
   std::string output_layer;
+  // cpu cores
+  int32_t cores;
 
   std::unique_ptr<tensorflow::Session> session;
   std::vector<std::string> label_list;
@@ -78,7 +80,7 @@ ImageRecognizer::Impl::Impl(const Parameters &params)
       input_mean(params.input_mean),
       input_std(params.input_std),
       input_layer(params.input_layer),
-      output_layer(params.output_layer) {
+      output_layer(params.output_layer), cores(params.cores) {
   // First we load and initialize the model.
   std::string graph_path = tensorflow::io::JoinPath("", graph);
   tensorflow::Status load_graph_status = LoadGraph(graph_path, &session);
@@ -255,7 +257,16 @@ tensorflow::Status ImageRecognizer::Impl::LoadGraph(
     return tensorflow::errors::NotFound("Failed to load compute graph at '",
                                         graph_file_name, "'");
   }
-  session->reset(tensorflow::NewSession(tensorflow::SessionOptions()));
+  // initialize the number of worker threads
+  tensorflow::SessionOptions options;
+  tensorflow::ConfigProto &config = options.config;
+  if (cores > 0) {
+    config.set_inter_op_parallelism_threads(cores);
+    config.set_intra_op_parallelism_threads(cores);
+    config.set_use_per_session_threads(false);
+  }
+
+  session->reset(tensorflow::NewSession(options));
   tensorflow::Status session_create_status = (*session)->Create(graph_def);
   if (!session_create_status.ok()) {
     return session_create_status;
@@ -293,7 +304,7 @@ ImageRecognizer::Parameters::Parameters(
     const std::string &graph, const std::string &labels,
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,
-    const std::string &input_layer, const std::string &output_layer)
+    const std::string &input_layer, const std::string &output_layer, const int32_t cores)
     : graph(graph),
       labels(labels),
       input_width(input_width),
@@ -301,7 +312,7 @@ ImageRecognizer::Parameters::Parameters(
       input_mean(input_mean),
       input_std(input_std),
       input_layer(input_layer),
-      output_layer(output_layer) {}
+      output_layer(output_layer),cores(cores) {}
 
 ImageRecognizer::Parameters::~Parameters() {}
 // Parameters end
@@ -324,10 +335,10 @@ std::shared_ptr<ImageRecognizer> CreateImageRecognizer(
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,
     const std::string &input_layer /*= "Mul"*/,
-    const std::string &output_layer /*= "softmax"*/) {
+    const std::string &output_layer /*= "softmax"*/, const int32_t cores /*= 2*/) {
   ImageRecognizer::Parameters parameters(graph, labels, input_width,
-                                        input_height, input_mean, input_std,
-                                        input_layer, output_layer);
+                                         input_height, input_mean, input_std,
+                                         input_layer, output_layer, cores);
   return std::make_shared<ImageRecognizer>(parameters);
 }
 }  // recognition

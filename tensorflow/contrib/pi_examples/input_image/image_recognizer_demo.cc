@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
                                                              input_mean,
                                                              input_std,
                                                              input_layer,
-                                                             output_layer);
+                                                             output_layer,6);
 
   // Load image
   std::vector<tensorflow::uint8> image_data;
