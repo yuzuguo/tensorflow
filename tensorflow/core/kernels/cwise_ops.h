@@ -26,30 +26,38 @@ limitations under the License.
 #include "tensorflow/core/kernels/bounds_check.h"
 
 namespace Eigen {
-namespace internal {
+namespace numext {
+#if GOOGLE_CUDA
+template <>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE std::complex<float> exp(
+    const std::complex<float>& x) {
+  auto com = ::expf(x.real());
+  auto res_real = com * ::cosf(x.imag());
+  auto res_imag = com * ::sinf(x.imag());
+  return std::complex<float>(res_real, res_imag);
+}
+template <>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE std::complex<double> exp(
+    const std::complex<double>& x) {
+  auto com = ::exp(x.real());
+  auto res_real = com * ::cos(x.imag());
+  auto res_imag = com * ::sin(x.imag());
+  return std::complex<double>(res_real, res_imag);
+}
+#endif
+}  // namespace numext
 
-// TODO(rmlarsen): Get rid of fmod2 once fmod is upstreamed to Eigen.
-template <typename T>
-struct scalar_fmod2_op {
-  EIGEN_EMPTY_STRUCT_CTOR(scalar_fmod2_op)
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const T operator()(const T& a,
-                                                           const T& b) const {
-    return std::fmod(a, b);
-  }
-};
-template <typename T>
-struct functor_traits<scalar_fmod2_op<T>> {
-  enum {
-    Cost = 13,  // Reciprocal throughput of FPREM on Haswell.
-    PacketAccess = false,
-  };
-};
+namespace internal {
 
 template <typename T>
 struct scalar_asinh_op {
   EIGEN_EMPTY_STRUCT_CTOR(scalar_asinh_op)
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const T operator()(const T& a) const {
+#if EIGEN_HAS_CXX11_MATH
+    return numext::asinh(a);
+#else
     return std::asinh(a);
+#endif  // EIGEN_HAS_CXX11_MATH
   }
 };
 template <typename T>
@@ -61,7 +69,11 @@ template <typename T>
 struct scalar_acosh_op {
   EIGEN_EMPTY_STRUCT_CTOR(scalar_acosh_op)
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const T operator()(const T& a) const {
+#if EIGEN_HAS_CXX11_MATH
+    return numext::acosh(a);
+#else
     return std::acosh(a);
+#endif  // EIGEN_HAS_CXX11_MATH
   }
 };
 template <typename T>
@@ -73,7 +85,11 @@ template <typename T>
 struct scalar_atanh_op {
   EIGEN_EMPTY_STRUCT_CTOR(scalar_atanh_op)
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const T operator()(const T& a) const {
+#if EIGEN_HAS_CXX11_MATH
+    return numext::atanh(a);
+#else
     return std::atanh(a);
+#endif  // EIGEN_HAS_CXX11_MATH
   }
 };
 template <typename T>
@@ -676,7 +692,9 @@ struct sub : base<T, Eigen::internal::scalar_difference_op<T>> {
 };
 
 template <typename T>
-struct mul : base<T, Eigen::internal::scalar_product_op<T>> {};
+struct mul : base<T, Eigen::internal::scalar_product_op<T>> {
+  static const bool use_bcast_optimization = true;
+};
 
 template <typename T>
 struct div : base<T, Eigen::internal::scalar_quotient_op<T>> {};
@@ -688,7 +706,7 @@ struct safe_div : base<T, Eigen::internal::safe_div_or_mod_op<
 };
 
 template <typename T>
-struct fmod : base<T, Eigen::internal::scalar_fmod2_op<T>> {};
+struct fmod : base<T, Eigen::internal::scalar_fmod_op<T>> {};
 
 template <typename T>
 struct mod : base<T, Eigen::internal::scalar_mod2_op<T>> {};

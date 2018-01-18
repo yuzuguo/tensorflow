@@ -81,21 +81,36 @@ tensorflow::Status LoadJpegFile(std::string file_name, std::vector<tensorflow::u
 }
 
 int main(int argc, char *argv[]) {
+//  std::string image =
+//      "tensorflow/contrib/pi_examples/label_image/data/"
+//          "grace_hopper.jpg";
+//  std::string graph =
+//      "tensorflow/contrib/pi_examples/label_image/data/"
+//          "tensorflow_inception_stripped.pb";
+//  std::string labels =
+//      "tensorflow/contrib/pi_examples/label_image/data/"
+//          "imagenet_comp_graph_label_strings.txt";
+//  int32_t input_width = 299;
+//  int32_t input_height = 299;
+//  int32_t input_mean = 128;
+//  int32_t input_std = 128;
+//  std::string input_layer = "Mul";
+//  std::vector<std::string> output_layers = {"softmax"};
+
   std::string image =
-      "tensorflow/contrib/pi_examples/label_image/data/"
-          "grace_hopper.jpg";
+      "tensorflow/contrib/pi_examples/input_image/image/dog.jpg";
   std::string graph =
-      "tensorflow/contrib/pi_examples/label_image/data/"
-          "tensorflow_inception_stripped.pb";
-  std::string labels =
-      "tensorflow/contrib/pi_examples/label_image/data/"
-          "imagenet_comp_graph_label_strings.txt";
+      "graphs/ssd_mobilenet_v1_coco_11_06_2017/"
+          "frozen_inference_graph.pb";
+  std::string labels = "graphs/ssd_mobilenet_v1_coco_11_06_2017/labels.txt";
   int32_t input_width = 299;
   int32_t input_height = 299;
-  int32_t input_mean = 128;
-  int32_t input_std = 128;
-  std::string input_layer = "Mul";
-  std::string output_layer = "softmax";
+  int32_t input_mean = 0;
+  int32_t input_std = 255;
+  std::string input_layer = "image_tensor:0";
+  std::vector<std::string> output_layers = {
+      "detection_boxes:0", "detection_scores:0", "detection_classes:0",
+      "num_detections:0"};
 
   std::vector<tensorflow::Flag> flag_list = {
       tensorflow::Flag("image", &image, "image to be processed"),
@@ -107,7 +122,7 @@ int main(int argc, char *argv[]) {
       tensorflow::Flag("input_mean", &input_mean, "scale pixel values to this mean"),
       tensorflow::Flag("input_std", &input_std, "scale pixel values to this std deviation"),
       tensorflow::Flag("input_layer", &input_layer, "name of input layer"),
-      tensorflow::Flag("output_layer", &output_layer, "name of output layer")
+      // tensorflow::Flag("output_layer", &output_layer, "name of output layer")
   };
   std::string usage = tensorflow::Flags::Usage(argv[0], flag_list);
   const bool parse_result = tensorflow::Flags::Parse(&argc, argv, flag_list);
@@ -123,7 +138,7 @@ int main(int argc, char *argv[]) {
                                                              input_mean,
                                                              input_std,
                                                              input_layer,
-                                                             output_layer,6);
+                                                             output_layers,6);
 
   // Load image
   std::vector<tensorflow::uint8> image_data;
@@ -145,8 +160,8 @@ int main(int argc, char *argv[]) {
   // run
   tensorflow::uint8 *in = image_data.data();
   auto result = imageRecognition->Recognize(in, image_width, image_height, image_channels);
-  for (std::pair<std::string, float> r : result) {
-    std::cout << r.first << " : " << r.second << std::endl;
+  for (PI::recognition::ObjectInfo r : result) {
+    std::cout << r << std::endl;
   }
   return 0;
 }

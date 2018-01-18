@@ -45,12 +45,11 @@ const DeviceOptions GetDeviceOptionsFromEnv() {
   }
 
   unsigned device_flags = 0;
-  if (strcasecmp(kScheduleSpinString, gpu_schedule_string) == 0) {
+  if (strcmp(kScheduleSpinString, gpu_schedule_string) == 0) {
     device_flags = perftools::gputools::DeviceOptions::kScheduleSpin;
-  } else if (strcasecmp(kScheduleYieldString, gpu_schedule_string) == 0) {
+  } else if (strcmp(kScheduleYieldString, gpu_schedule_string) == 0) {
     device_flags = perftools::gputools::DeviceOptions::kScheduleYield;
-  } else if (strcasecmp(kScheduleBlockingSyncString, gpu_schedule_string) ==
-             0) {
+  } else if (strcmp(kScheduleBlockingSyncString, gpu_schedule_string) == 0) {
     device_flags = perftools::gputools::DeviceOptions::kScheduleBlockingSync;
   } else {
     LOG(QFATAL) << "Unknown option for environment variable "
@@ -198,7 +197,7 @@ void CudaPlatform::UnregisterTraceListener(TraceListener* listener) {
 static void InitializeCudaPlatform() {
   // Disabling leak checking, MultiPlatformManager does not destroy its
   // registered platforms.
-  
+
   std::unique_ptr<cuda::CudaPlatform> platform(new cuda::CudaPlatform);
   SE_CHECK_OK(MultiPlatformManager::RegisterPlatform(std::move(platform)));
 }

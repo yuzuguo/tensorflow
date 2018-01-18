@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <string>
+#include <iomanip>
 
 #include "image_recognizer.h"
 
@@ -30,7 +31,7 @@ class ImageRecognizer::Impl {
   Impl(const Parameters &params);
   ~Impl();
 
-  std::vector<std::pair<std::string, float>> Recognize(
+  std::vector<ObjectInfo> Recognize(
       uint8_t *image_data, const int image_width, const int image_height,
       const int image_channels);
 
@@ -47,10 +48,10 @@ class ImageRecognizer::Impl {
   int32_t input_mean;
   // scale pixel values to this std deviation
   int32_t input_std;
-  // name of input layer, default is Mul
+  // name of input layer
   std::string input_layer;
-  // name of output layer, default is softmax
-  std::string output_layer;
+  // name of output layers
+  std::vector<std::string> output_layers;
   // cpu cores
   int32_t cores;
 
@@ -80,7 +81,8 @@ ImageRecognizer::Impl::Impl(const Parameters &params)
       input_mean(params.input_mean),
       input_std(params.input_std),
       input_layer(params.input_layer),
-      output_layer(params.output_layer), cores(params.cores) {
+      output_layers(params.output_layers),
+      cores(params.cores) {
   // First we load and initialize the model.
   std::string graph_path = tensorflow::io::JoinPath("", graph);
   tensorflow::Status load_graph_status = LoadGraph(graph_path, &session);
@@ -97,10 +99,10 @@ ImageRecognizer::Impl::Impl(const Parameters &params)
 
 ImageRecognizer::Impl::~Impl() {}
 
-std::vector<std::pair<std::string, float>> ImageRecognizer::Impl::Recognize(
+std::vector<ObjectInfo> ImageRecognizer::Impl::Recognize(
     uint8_t *image_data, const int image_width, const int image_height,
     const int image_channels) {
-  std::vector<std::pair<std::string, float>> top_result;
+  std::vector<ObjectInfo> top_result;
   // Get the image from image_data as a float array of numbers, resized and
   // normalized
   // to the specifications the main graph expects.
@@ -115,32 +117,52 @@ std::vector<std::pair<std::string, float>> ImageRecognizer::Impl::Recognize(
 
   // Actually run the image through the model.
   std::vector<tensorflow::Tensor> outputs;
-  tensorflow::Status run_status = session->Run({{input_layer, resized_tensor}},
-                                               {output_layer}, {}, &outputs);
+  tensorflow::Status run_status =
+      session->Run({{input_layer, resized_tensor}}, output_layers, {}, &outputs);
   if (!run_status.ok()) {
     std::cerr << "Running model failed: " << run_status << std::endl;
   } else {
     std::cout << "Running model succeeded!" << std::endl;
   }
 
-  //
-  const int how_many_labels = std::min(5, static_cast<int>(label_count));
-  tensorflow::Tensor indices;
-  tensorflow::Tensor scores;
-  tensorflow::Status top_label_result =
-      GetTopLabels(outputs, how_many_labels, &indices, &scores);
-  if (!top_label_result.ok()) {
-    return top_result;
-  }
-  tensorflow::TTypes<float>::Flat scores_flat = scores.flat<float>();
-  tensorflow::TTypes<tensorflow::int32>::Flat indices_flat =
-      indices.flat<tensorflow::int32>();
-  for (int pos = 0; pos < how_many_labels; ++pos) {
-    const int label_index = indices_flat(pos);
-    const float score = scores_flat(pos);
-    std::cout << label_list[label_index] << " (" << label_index
-              << "): " << score << std::endl;
-    top_result.push_back(std::make_pair(label_list[label_index], score));
+  // object detect
+  if (outputs.size() >= 4) {
+    tensorflow::TTypes<float>::Flat scores = outputs[1].flat<float>();
+    tensorflow::TTypes<float>::Flat classes = outputs[2].flat<float>();
+    tensorflow::TTypes<float>::Flat num_detections = outputs[3].flat<float>();
+    auto boxes = outputs[0].flat_outer_dims<float, 3>();
+
+    // LOG(INFO) << "num_detections:" << num_detections(0) << ","
+    // << outputs[0].shape().DebugString();
+
+    for (size_t i = 0; i < num_detections(0) && i < 20; ++i) {
+      if (scores(i) > 0.5) {
+        // LOG(INFO) << i << ",score:" << scores(i) << ",class:" << classes(i)
+        // << ",box:" << boxes(0, i, 0) << "," << boxes(0, i, 1) << ","
+        // << boxes(0, i, 2) << "," << boxes(0, i, 3);
+        top_result.push_back(
+            {label_list[(int) (classes(i)) - 1], scores(i),
+             boxes(0, i, 1) * image_width, boxes(0, i, 0) * image_height,
+             boxes(0, i, 3) * image_width, boxes(0, i, 2) * image_height});
+      }
+    }
+  } else {  // classify
+    const int how_many_labels = std::min(5, static_cast<int>(label_count));
+    tensorflow::Tensor indices;
+    tensorflow::Tensor scores;
+    tensorflow::Status top_label_result =
+        GetTopLabels(outputs, how_many_labels, &indices, &scores);
+    if (!top_label_result.ok()) {
+      return top_result;
+    }
+    tensorflow::TTypes<float>::Flat scores_flat = scores.flat<float>();
+    tensorflow::TTypes<tensorflow::int32>::Flat indices_flat =
+        indices.flat<tensorflow::int32>();
+    for (int pos = 0; pos < how_many_labels; ++pos) {
+      const int label_index = indices_flat(pos);
+      const float score = scores_flat(pos);
+      top_result.push_back({label_list[label_index], score, 0, 0, 0, 0});
+    }
   }
   return top_result;
 }
@@ -176,16 +198,33 @@ tensorflow::Status ImageRecognizer::Impl::GetTopLabels(
 tensorflow::Status ImageRecognizer::Impl::ReadTensorFromImage(
     uint8_t *image_data, int image_width, int image_height, int image_channels,
     std::vector<tensorflow::Tensor> *out_tensors) {
+
   const int wanted_channels = 3;
-  const int wanted_width = input_width;
-  const int wanted_height = input_height;
-  const float input_mean = static_cast<float>(this->input_mean);
-  const float input_std = static_cast<float>(this->input_std);
+
   if (image_channels < wanted_channels) {
     return tensorflow::errors::FailedPrecondition(
         "Image needs to have at least ", wanted_channels, " but only has ",
         image_channels);
   }
+
+  if(this->output_layers.size() > 1) { // object detect
+    tensorflow::Tensor image_tensor(tensorflow::DT_UINT8,
+                                    tensorflow::TensorShape({1, image_height, image_width, image_channels}));
+    auto image_tensor_mapped = image_tensor.tensor<uint8_t, 4>();
+    uint8_t *out = image_tensor_mapped.data();
+    uint32_t total_size = image_height * image_width * image_channels;
+    for (uint32_t i = 0, j = 0; i < total_size; ++i) {
+      out[i] = image_data[i];
+    }
+    out_tensors->push_back(image_tensor);
+    return tensorflow::Status::OK();
+  }
+
+  const int wanted_width = this->input_width;
+  const int wanted_height = this->input_height;
+  const float input_mean = static_cast<float>(this->input_mean);
+  const float input_std = static_cast<float>(this->input_std);
+
 
   // In these loops, we convert the eight-bit data in the image into float,
   // resize
@@ -304,7 +343,8 @@ ImageRecognizer::Parameters::Parameters(
     const std::string &graph, const std::string &labels,
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,
-    const std::string &input_layer, const std::string &output_layer, const int32_t cores)
+    const std::string &input_layer,
+    const std::vector<std::string> &output_layers, const int32_t cores)
     : graph(graph),
       labels(labels),
       input_width(input_width),
@@ -312,7 +352,8 @@ ImageRecognizer::Parameters::Parameters(
       input_mean(input_mean),
       input_std(input_std),
       input_layer(input_layer),
-      output_layer(output_layer),cores(cores) {}
+      output_layers(output_layers),
+      cores(cores) {}
 
 ImageRecognizer::Parameters::~Parameters() {}
 // Parameters end
@@ -322,7 +363,7 @@ ImageRecognizer::ImageRecognizer(const Parameters &params)
     : impl_(std::make_shared<Impl>(params)) {}
 ImageRecognizer::~ImageRecognizer() {}
 
-std::vector<std::pair<std::string, float>> ImageRecognizer::Recognize(
+std::vector<ObjectInfo> ImageRecognizer::Recognize(
     uint8_t *image_data, const int image_width, const int image_height,
     const int image_channels) {
   return impl_->Recognize(image_data, image_width, image_height,
@@ -334,12 +375,20 @@ std::shared_ptr<ImageRecognizer> CreateImageRecognizer(
     const std::string &graph, const std::string &labels,
     const int32_t input_width, const int32_t input_height,
     const int32_t input_mean, const int32_t input_std,
-    const std::string &input_layer /*= "Mul"*/,
-    const std::string &output_layer /*= "softmax"*/, const int32_t cores /*= 2*/) {
+    const std::string &input_layer,
+    const std::vector<std::string> &output_layers,
+    const int32_t cores /*= 2*/) {
   ImageRecognizer::Parameters parameters(graph, labels, input_width,
                                          input_height, input_mean, input_std,
-                                         input_layer, output_layer, cores);
+                                         input_layer, output_layers, cores);
   return std::make_shared<ImageRecognizer>(parameters);
 }
+std::ostream &operator<<(std::ostream &os, const ObjectInfo &info) {
+  os << info.classes << "[" << info.scores << "]: "
+     << "[T: " << info.box_top << ", L: " << info.box_left
+     << ", B: " << info.box_bottom << ", R: " << info.box_right << "]";
+  return os;
+}
+
 }  // recognition
 }  // PI

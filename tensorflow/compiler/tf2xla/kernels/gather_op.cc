@@ -192,12 +192,13 @@ void GatherOpDynamicSlice::Compile(XlaOpKernelContext* context) {
               errors::InvalidArgument("indices must be int32 or int64"));
 
   xla::ComputationDataHandle gather = XlaComputeGatherDynamicSlice(
-      context, input, input_shape, indices, indices_shape, axis, DT_FLOAT,
+      context, input, input_shape, indices, indices_shape, axis, input_type(0),
       index_type, builder);
   context->SetOutput(0, gather);
 }
 
 REGISTER_XLA_OP(Name("Gather"), GatherOpDynamicSlice);
-REGISTER_XLA_OP(Name("GatherV2"), GatherOpDynamicSlice);
+REGISTER_XLA_OP(Name("GatherV2").CompileTimeConstInput("axis"),
+                GatherOpDynamicSlice);
 
 }  // namespace tensorflow

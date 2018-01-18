@@ -72,9 +72,6 @@ class NcclTestCase(test.TestCase):
           two.
       device_sets: Tuple of virtual devices to run test on.
     """
-    if not test.is_gpu_available():
-      return  # Test requires access to a GPU
-
     for dtype in [np.float32, np.int32, np.int64, np.float64]:
       # Create session inside outer loop to test use of
       # same communicator across multiple sessions.
@@ -99,6 +96,11 @@ class NcclTestCase(test.TestCase):
 
           result_tensors = [array_ops.identity(t) for t in reduce_tensors]
 
+          # Check GPU availability *after* creating session, see b/68975239.
+          if not test.is_gpu_available():
+            # If no GPU is available, only test graph construction.
+            continue
+
           # Test execution and results.
           for t in sess.run(result_tensors):
             self.assertAllClose(t, np_ans)
@@ -113,11 +115,13 @@ class NcclTestCase(test.TestCase):
       numpy_fn: A function taking two tensors and returning the gradient of the
           reduction of the two.
     """
+
     def _Gradient(tensors, devices):
       inputs = [array_ops.placeholder(t.dtype, t.shape) for t in tensors]
       reduce_tensors = nccl_reduce(inputs, devices)
       losses = _DeviceTensors(tensors, [t.device for t in reduce_tensors])
-      grads = gradients.gradients(reduce_tensors, inputs, losses)
+      grads = gradients.gradients(
+          reduce_tensors, inputs, losses, colocate_gradients_with_ops=True)
       return [g for g in grads if g is not None]
 
     self._Test(_Gradient, numpy_fn)
@@ -159,18 +163,20 @@ class BroadcastTest(NcclTestCase):
   def testBroadcastSingleDevice(self):
     # Broadcasts on a single device are removed completely during rewrite.
     self._Test(_NcclBroadcast, lambda x, y: x,
-               (['/device:GPU:0', '/device:GPU:0']))
+               (['/device:GPU:0', '/device:GPU:0'],))
 
   def testBroadcastToCpuError(self):
-    # Broadcasts to CPU is not supported.
-    with self.assertRaisesRegexp(
-        errors.NotFoundError,
-        "No registered '_NcclBroadcastRecv' OpKernel for CPU devices"):
+    try:
+      # Broadcasts to CPU is not supported.
       self._Test(_NcclBroadcast, lambda x, y: x,
-                 (['/device:GPU:0', '/device:CPU:0']))
-
-  def testBroadcastGrad(self):
-    self._TestGradient(_NcclBroadcast, lambda x, y: x + y)
+                 (['/device:GPU:0', '/device:CPU:0'],))
+    except errors.NotFoundError as e:
+      self.assertRegexpMatches(
+          str(e), "No registered '_NcclBroadcastRecv' OpKernel for CPU devices")
+    else:
+      # Session isn't executed when no GPU is available.
+      if test.is_gpu_available():
+        self.fail("Didn't raise NotFoundError trying to broadcast to CPU")
 
 
 class CombinedTest(NcclTestCase):

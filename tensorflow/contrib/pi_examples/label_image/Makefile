@@ -82,7 +82,7 @@ $(EXECUTABLE_NAME): $(EXECUTABLE_OBJS) $(TFLIBS) $(PROTOBUFGENDIR)/lib/libprotob
 	$(LIBFLAGS) $(LIB_PATH) $(LDFLAGS) $(LIBS)
 
 # Matches on C++ source files.
-$(OBJDIR)%.o: %.cc 
+$(OBJDIR)%.o: %.cc
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 

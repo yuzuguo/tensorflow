@@ -15,7 +15,6 @@ load("//tensorflow:tensorflow.bzl", "py_test")
 py_library(
     name = "receptive_field_pip",
     deps = [
-        ":graph_compute_order_py",
         ":receptive_field_py",
     ],
 )
@@ -23,7 +22,6 @@ py_library(
 py_library(
     name = "graph_compute_order_py",
     srcs = [
-        "__init__.py",
         "python/util/graph_compute_order.py",
     ],
     srcs_version = "PY2AND3",
@@ -32,14 +30,16 @@ py_library(
 py_library(
     name = "receptive_field_py",
     srcs = [
-        "__init__.py",
         "python/util/receptive_field.py",
+        "receptive_field_api.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
         ":graph_compute_order_py",
         "//tensorflow/contrib/util:util_py",
+        "//tensorflow/python:framework_ops",
         "//tensorflow/python:platform",
+        "//third_party/py/numpy",
     ],
 )
 
@@ -49,12 +49,13 @@ py_test(
     srcs_version = "PY2AND3",
     deps = [
         ":receptive_field_py",
-        "//tensorflow/contrib/framework:framework_py",
         "//tensorflow/contrib/slim",
         "//tensorflow/python:array_ops",
         "//tensorflow/python:client_testlib",
         "//tensorflow/python:dtypes",
+        "//tensorflow/python:framework_ops",
         "//tensorflow/python:nn",
+        "//third_party/py/numpy",
     ],
 )
 
