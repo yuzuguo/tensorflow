@@ -24,7 +24,7 @@ cp tensorflow/contrib/makefile/gen/lib/android_arm64-v8a/libtensorflow-core.a  $
 # nsync library
 cp tensorflow/contrib/makefile/downloads/nsync/builds/arm64-v8a.android.c++11/nsync.a  ${root_dir}/Android-ARM64/lib/libnsync.a
 # protobuf library
-cp tensorflow/contrib/makefile/gen/protobuf/lib/libprotobuf.a  ${root_dir}/Android-ARM64/lib/
+cp tensorflow/contrib/makefile/gen/protobuf_android/arm64-v8a/lib/libprotobuf.a  ${root_dir}/Android-ARM64/lib/
 # include 
 tmp=${root_dir}/Android-ARM64/include/recognition
 if [ ! -d "$tmp" ]; then
