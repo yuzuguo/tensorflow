@@ -211,6 +211,10 @@ endif
 endif
 # Make sure that we don't strip global constructors on Linux.
 ifeq ($(TARGET),LINUX)
+# Eigen
+CXXFLAGS += -DEIGEN_DONT_VECTORIZE=1 \
+-DEIGEN_DONT_ALIGN=1
+
 ifeq ($(HAS_GEN_HOST_PROTOC),true)
 	LIBFLAGS += -L$(MAKEFILE_DIR)/gen/protobuf-host/lib
 	export LD_LIBRARY_PATH=$(MAKEFILE_DIR)/gen/protobuf-host/lib
