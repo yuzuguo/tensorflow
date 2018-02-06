@@ -121,8 +121,6 @@ std::vector<ObjectInfo> ImageRecognizer::Impl::Recognize(
       session->Run({{input_layer, resized_tensor}}, output_layers, {}, &outputs);
   if (!run_status.ok()) {
     std::cerr << "Running model failed: " << run_status << std::endl;
-  } else {
-    std::cout << "Running model succeeded!" << std::endl;
   }
 
   // object detect
