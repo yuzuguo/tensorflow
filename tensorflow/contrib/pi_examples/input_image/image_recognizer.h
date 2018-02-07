@@ -13,10 +13,10 @@ namespace recognition {
 struct ObjectInfo {
   std::string classes;
   float scores;
-  int32_t box_top;
   int32_t box_left;
-  int32_t box_bottom;
+  int32_t box_top;
   int32_t box_right;
+  int32_t box_bottom;
   /// ostream operator overload enable std::cout
   friend std::ostream& operator<<(std::ostream& os, const ObjectInfo& info);
 };
