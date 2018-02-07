@@ -106,8 +106,20 @@ for arch in $archs; do
 
         # Get Makefile for target.
         case "$target_platform" in
-        linux)  makefile='
-                        CC=${CC_PREFIX} g++
+        linux)
+                case "$STAGING_DIR" in
+                "")     echo "$prog: requires \STAGING_DIR for zuluko build" >&2
+                        exit 2;;
+                esac
+                case "$arch" in
+                zuluko) toolchain="$STAGING_DIR/bin/arm-openwrt-linux-"
+                ;;
+                *) toolchain=""
+                ;;
+                esac
+                makefile='
+                        CC=${CC_PREFIX} \
+                        '"$toolchain"'g++
                         PLATFORM_CPPFLAGS=-DNSYNC_USE_CPP11_TIMEPOINT -DNSYNC_ATOMIC_CPP11 \
                                           -I../../platform/c++11 -I../../platform/gcc \
                                           -I../../platform/posix -pthread

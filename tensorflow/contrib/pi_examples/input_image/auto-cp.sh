@@ -31,3 +31,19 @@ if [ ! -d "$tmp" ]; then
 mkdir "$tmp"
 fi
 cp tensorflow/contrib/pi_examples/input_image/image_recognizer.h ${root_dir}/Android-ARM64/include/recognition/
+
+# ZULUKO
+# recognize module library
+cp tensorflow/contrib/pi_examples/input_image/gen/lib/linux_zuluko/libpi_module_recognition.a ${root_dir}/Linux-ARM/lib/
+# tensoflow core library
+cp tensorflow/contrib/makefile/gen/lib/linux_zuluko/libtensorflow-core.a  ${root_dir}/Linux-ARM/lib/
+# nsync library
+cp tensorflow/contrib/makefile/downloads/nsync/builds/zuluko.linux.c++11/nsync.a  ${root_dir}/Linux-ARM/lib/libnsync.a
+# protobuf library
+cp tensorflow/contrib/makefile/gen/protobuf_zuluko/arm64-v8a/lib/libprotobuf.a  ${root_dir}/Linux-ARM/lib/
+# include
+tmp=${root_dir}/Linux-ARM/include/recognition
+if [ ! -d "$tmp" ]; then
+mkdir "$tmp"
+fi
+cp tensorflow/contrib/pi_examples/input_image/image_recognizer.h ${root_dir}/Linux-ARM/include/recognition/

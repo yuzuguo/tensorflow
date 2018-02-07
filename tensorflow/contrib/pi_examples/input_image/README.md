@@ -70,3 +70,14 @@ make -j12 -f tensorflow/contrib/makefile/Makefile TARGET=ANDROID ANDROID_ARCH=ar
 make -f tensorflow/contrib/pi_examples/input_image/Makefile TARGET=ANDROID ANDROID_ARCH=arm64-v8a clean
 make -f tensorflow/contrib/pi_examples/input_image/Makefile TARGET=ANDROID ANDROID_ARCH=arm64-v8a
 ```
+### building on zuluko
+```bash
+make -f tensorflow/contrib/makefile/Makefile cleantarget
+tensorflow/contrib/makefile/compile_zuluko_protobuf.sh 
+export HOST_NSYNC_LIB=`tensorflow/contrib/makefile/compile_nsync.sh`
+export TARGET_NSYNC_LIB=`CC_PREFIX="${CC_PREFIX}" STAGING_DIR="${STAGING_DIR}" \
+	tensorflow/contrib/makefile/compile_nsync.sh -t linux -a zuluko`
+make -j12 -f tensorflow/contrib/makefile/Makefile TARGET=ZULUKO
+
+make -f tensorflow/contrib/pi_examples/input_image/Makefile TARGET=ZULUKO
+```

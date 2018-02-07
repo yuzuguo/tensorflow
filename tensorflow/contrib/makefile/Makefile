@@ -156,7 +156,9 @@ CXX := $(CC_PREFIX) gcc
 OPTFLAGS := -O2
 
 ifneq ($(TARGET),ANDROID)
+ifneq ($(TARGET),ZULUKO)
   OPTFLAGS += -march=native
+endif
 endif
 
 CXXFLAGS := --std=c++11 -DIS_SLIM_BUILD -fno-exceptions -DNDEBUG $(OPTFLAGS)
@@ -233,6 +235,49 @@ ifeq ($(TARGET),PI)
 	LDFLAGS := -Wl,--no-whole-archive
 	LIBS += -ldl -lpthread
 	LIBFLAGS += -Wl,--allow-multiple-definition -Wl,--whole-archive
+endif
+
+# Set up ZULUKO building
+ifeq ($(TARGET), ZULUKO)
+BIN_PREFIX := arm-openwrt-linux
+CXX := $(CC_PREFIX) $(STAGING_DIR)/bin/$(BIN_PREFIX)-g++
+CC := $(CC_PREFIX) $(STAGING_DIR)/bin/$(BIN_PREFIX)-gcc
+CXXFLAGS +=\
+-fPIC
+
+	INCLUDES = \
+-I$(STAGING_DIR)/include \
+-I. \
+-I$(MAKEFILE_DIR)/downloads/ \
+-I$(MAKEFILE_DIR)/downloads/eigen \
+-I$(MAKEFILE_DIR)/downloads/gemmlowp \
+-I$(MAKEFILE_DIR)/downloads/nsync/public \
+-I$(MAKEFILE_DIR)/downloads/fft2d \
+-I$(MAKEFILE_DIR)/gen/protobuf_zuluko/include \
+-I$(PROTOGENDIR) \
+-I$(PBTGENDIR)
+
+	LIBS := \
+$(TARGET_NSYNC_LIB) \
+-lprotobuf \
+-lm \
+-ldl \
+-latomic
+
+	LD := $(STAGING_DIR)/$(BIN_PREFIX)/bin/ld
+
+	LDFLAGS := \
+-L$(MAKEFILE_DIR)/gen/protobuf_zuluko/lib \
+-L$(STAGING_DIR)/lib
+
+	AR := $(STAGING_DIR)/bin/$(BIN_PREFIX)-ar
+	ARFLAGS := r
+	LIBFLAGS += -Wl,--allow-multiple-definition -Wl,--whole-archive
+
+    OBJDIR := $(OBJDIR)linux_zuluko/
+    LIBDIR := $(LIBDIR)linux_zuluko/
+    BINDIR := $(BINDIR)linux_zuluko/
+    DEPDIR := $(DEPDIR)linux_zuluko/
 endif
 
 # Set up Android building
